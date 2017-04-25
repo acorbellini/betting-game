@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Betting Game</title>
+</head>
+<style media="screen">
+    .hidden {
+        display: none;
+    }
+
+
+</style>
+
+<body>
+<div class="">
+    <form class="" onsubmit="login(); return false;" id="formLogin">
+        <input type="text" name="" value="" id="nameInput">
+        <button type="submit" name="button" id="buttonLogin"></button>
+    </form>
+    <div class="hidden" id="game">
+        <div class="">
+            Hello, <span id="user"></span>, please, send your bet
+        </div>
+        <form class="" onsubmit="bet(); return false;" id="gameForm">
+            <input type="number" name="" value="" id="numberInput">
+            <button type="submit" name="button" id="numberSubmit">Send Bet</button>
+        </form>
+        <div class="">
+            <span id="result"></span>
+        </div>
+        <div class="">
+            <h4>Connected Users:</h4>
+            <ul id="connectedUsers">
+
+            </ul>
+        </div>
+        <div class="">
+            <h4>Playing Users:</h4>
+            <ul id="playingUsers">
+
+            </ul>
+        </div>
+    </div>
+</div>
+</body>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+<script type="text/javascript" charset="utf-8">
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+    var btn = document.getElementById("buttonLogin");
+    btn.disabled = true;
+    btn.innerText = "Connecting...";
+    var disconnected = true;
+    var me = null
+    var currentGame = null
+    var sent_bet = false
+
+    var login = function() {
+        socket.emit("login", document.getElementById("nameInput").value, function(user) {
+            document.getElementById("formLogin").className = "hidden";
+            document.getElementById("game").className = ""
+            document.getElementById("user").innerText = user.name
+            me = user
+            disconnected = false
+        });
+    }
+
+    var bet = function() {
+        sent_bet = true
+        socket.emit("send bet", document.getElementById("numberInput").value);
+        console.log("Waiting for game to finish.")
+        document.getElementById("numberSubmit").disabled = true
+        document.getElementById("numberInput").disabled = true
+        document.getElementById("numberSubmit").innerText = "Playing..."
+        document.getElementById("result").innerText = ""
+    }
+
+    socket.on('winner', function(winner) {
+        if (currentGame && winner.game != currentGame)
+            console.log("Received winner from wrong game")
+        else {
+            currentGame = null
+            document.getElementById("numberSubmit").disabled = false
+            document.getElementById("numberInput").disabled = false
+            document.getElementById("numberSubmit").innerText = "Send Bet"
+            var res = document.getElementById("result")
+            if (winner.id === me.id)
+                res.innerText = "You won!!"
+            else if (winner.name)
+                res.innerText = "And the winner is : " + winner.name + " with " + winner.bet
+            else
+                res.innerText = "It's a draw!"
+        }
+    });
+
+    socket.on('connect', function() {
+        btn.disabled = false;
+        btn.innerText = "Login";
+        if (disconnected && me) {
+            socket.emit("relogin", me, function(newMe) {
+                console.log("Relogged in")
+                disconnected = false;
+                me = newMe
+                document.getElementById("numberSubmit").disabled = false
+                document.getElementById("numberInput").disabled = false
+                document.getElementById("numberSubmit").innerText = "Send Bet"
+            });
+        }
+    });
+
+    socket.on('disconnect', function() {
+        btn.disabled = true;
+        btn.innerText = "Connecting...";
+        disconnected = true;
+    });
+
+    socket.on('current users', function(users) {
+        var list = document.getElementById("connectedUsers")
+        list.innerHTML = ""
+        for (user in users) {
+            var current = users[user]
+            element = document.createElement("li");
+            list.appendChild(element)
+            element.innerText = current.name
+        }
+    });
+
+    socket.on('playing users', function(users) {
+        var list = document.getElementById("playingUsers")
+        list.innerHTML = ""
+        for (user in users) {
+            var current = users[user]
+            element = document.createElement("li");
+            list.appendChild(element)
+            element.innerText = current.name
+        }
+    });
+
+
+</script>
+
+</html>
